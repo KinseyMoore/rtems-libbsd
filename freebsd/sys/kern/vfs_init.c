@@ -1,3 +1,5 @@
+#include <machine/rtems-bsd-kernel-space.h>
+
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -69,7 +71,11 @@ int maxvfsconf = VFS_GENERIC + 1;
  */
 struct vfsconfhead vfsconf = TAILQ_HEAD_INITIALIZER(vfsconf);
 struct sx vfsconf_sx;
+#ifndef __rtems__
 SX_SYSINIT(vfsconf, &vfsconf_sx, "vfsconf");
+#else /* __rtems__ */
+SX_SYSINIT_FLAGS(vfsconf, &vfsconf_sx, "vfsconf", SX_RECURSE);
+#endif /* __rtems__ */
 
 /*
  * Loader.conf variable vfs.typenumhash enables setting vfc_typenum using a hash
@@ -147,18 +153,22 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 		return (vfsp);
 
 	/* Try to load the respective module. */
+#ifndef __rtems__
 	*error = kern_kldload(td, fstype, &fileid);
 	loaded = (*error == 0);
 	if (*error == EEXIST)
 		*error = 0;
 	if (*error)
 		return (NULL);
+#endif /* __rtems__ */
 
 	/* Look up again to see if the VFS was loaded. */
 	vfsp = vfs_byname(fstype);
 	if (vfsp == NULL) {
+#ifndef __rtems__
 		if (loaded)
 			(void)kern_kldunload(td, fileid, LINKER_UNLOAD_FORCE);
+#endif /* __rtems__ */
 		*error = ENODEV;
 		return (NULL);
 	}
@@ -475,8 +485,10 @@ vfs_register(struct vfsconf *vfc)
 		vfc->vfc_vfsops = &vfsops_sigdefer;
 	}
 
+#ifndef __rtems__
 	if (vfc->vfc_flags & VFCF_JAIL)
 		prison_add_vfs(vfc);
+#endif /* __rtems__ */
 
 	/*
 	 * Call init function for this VFS...
@@ -497,6 +509,7 @@ vfs_register(struct vfsconf *vfc)
 	 * preserved by re-registering the oid after modifying its
 	 * number.
 	 */
+#ifndef __rtems__
 	sysctl_wlock();
 	SLIST_FOREACH(oidp, SYSCTL_CHILDREN(&sysctl___vfs), oid_link) {
 		if (strcmp(oidp->oid_name, vfc->vfc_name) == 0) {
@@ -507,6 +520,7 @@ vfs_register(struct vfsconf *vfc)
 		}
 	}
 	sysctl_wunlock();
+#endif /* __rtems__ */
 
 	return (0);
 }

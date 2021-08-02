@@ -839,6 +839,7 @@ vfs_statfs_t	__vfs_statfs;
 #define VFS_VERSION_02	0x20180504
 #define VFS_VERSION	VFS_VERSION_02
 
+#ifndef __rtems__
 #define VFS_SET(vfsops, fsname, flags) \
 	static struct vfsconf fsname ## _vfsconf = {		\
 		.vfc_version = VFS_VERSION,			\
@@ -853,6 +854,22 @@ vfs_statfs_t	__vfs_statfs;
 		& fsname ## _vfsconf				\
 	};							\
 	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE)
+#else /* __rtems__ */
+#define VFS_SET(vfsops, fsname, flags) \
+	struct vfsconf fsname ## _vfsconf = {			\
+		.vfc_version = VFS_VERSION,			\
+		.vfc_name = #fsname,				\
+		.vfc_vfsops = &vfsops,				\
+		.vfc_typenum = -1,				\
+		.vfc_flags = flags,				\
+	};							\
+	moduledata_t fsname ## _mod = {				\
+		#fsname,					\
+		vfs_modevent,					\
+		& fsname ## _vfsconf				\
+	};							\
+	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE)
+#endif /* __rtems__ */
 
 /*
  * exported vnode operations

@@ -1,3 +1,5 @@
+#include <machine/rtems-bsd-kernel-space.h>
+
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -43,8 +45,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
-#include "opt_watchdog.h"
+#include <rtems/bsd/local/opt_ddb.h>
+#include <rtems/bsd/local/opt_watchdog.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -57,7 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/dirent.h>
 #include <sys/event.h>
 #include <sys/eventhandler.h>
+#ifndef __rtems__
 #include <sys/extattr.h>
+#endif /* __rtems__ */
 #include <sys/file.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
@@ -65,7 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/ktr.h>
+#ifndef __rtems__
 #include <sys/lockf.h>
+#endif /* __rtems__ */
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
@@ -387,6 +393,7 @@ out:
 	return (error);
 }
 
+#ifndef __rtems__
 static int
 sysctl_ftry_reclaim_vnode(SYSCTL_HANDLER_ARGS)
 {
@@ -426,6 +433,7 @@ SYSCTL_PROC(_debug, OID_AUTO, ftry_reclaim_vnode,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_WR, NULL, 0,
     sysctl_ftry_reclaim_vnode, "I",
     "Try to reclaim a vnode by its file descriptor");
+#endif /* __rtems__ */
 
 /* Shift count for (uintptr_t)vp to initialize vp->v_hash. */
 static int vnsz2log;
@@ -491,7 +499,9 @@ vnode_init(void *mem, int size, int flags)
 	/*
 	 * Initialize rangelocks.
 	 */
+#ifndef __rtems__
 	rangelock_init(&vp->v_rl);
+#endif /* __rtems__ */
 	return (0);
 }
 
@@ -505,7 +515,9 @@ vnode_fini(void *mem, int size)
 	struct bufobj *bo;
 
 	vp = mem;
+#ifndef __rtems__
 	rangelock_destroy(&vp->v_rl);
+#endif /* __rtems__ */
 	lockdestroy(vp->v_vnlock);
 	mtx_destroy(&vp->v_interlock);
 	bo = &vp->v_bufobj;
@@ -550,10 +562,18 @@ vntblinit(void *dummy __unused)
 	 * size.  The memory required by desiredvnodes vnodes and vm objects
 	 * must not exceed 1/10th of the kernel's heap size.
 	 */
+#ifndef __rtems__
 	physvnodes = maxproc + pgtok(vm_cnt.v_page_count) / 64 +
 	    3 * min(98304 * 16, pgtok(vm_cnt.v_page_count)) / 64;
 	virtvnodes = vm_kmem_size / (10 * (sizeof(struct vm_object) +
 	    sizeof(struct vnode) + NC_SZ * ncsizefactor + NFS_NCLNODE_SZ));
+#else /* __rtems__ */
+	/*
+	 * Make a fixed number until someone decided on a better solution for RTEMS
+	 */
+	physvnodes = 128;
+	virtvnodes = 128;
+#endif /* __rtems__ */
 	desiredvnodes = min(physvnodes, virtvnodes);
 	if (desiredvnodes > MAXVNODES_MAX) {
 		if (bootverbose)
@@ -1034,7 +1054,11 @@ vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
 		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)) ||
 		    ((vp->v_iflag & VI_FREE) != 0) ||
 		    (vp->v_iflag & VI_DOOMED) != 0 || (vp->v_object != NULL &&
+#ifndef __rtems__
 		    vp->v_object->resident_page_count > trigger)) {
+#else /* __rtems__ */
+		    false)) {
+#endif /* __rtems__ */
 			VI_UNLOCK(vp);
 			goto next_iter;
 		}
@@ -1061,7 +1085,11 @@ vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
 		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)) ||
 		    (vp->v_iflag & VI_FREE) != 0 ||
 		    (vp->v_object != NULL &&
+#ifndef __rtems__
 		    vp->v_object->resident_page_count > trigger)) {
+#else /* __rtems__ */
+		    false)) {
+#endif /* __rtems__ */
 			VOP_UNLOCK(vp, 0);
 			vdropl(vp);
 			goto next_iter_mntunlocked;
@@ -1074,15 +1102,21 @@ vlrureclaim(struct mount *mp, bool reclaim_nc_src, int trigger)
 		vdropl(vp);
 		done++;
 next_iter_mntunlocked:
+#ifndef __rtems__
 		if (!should_yield())
 			goto relock_mnt;
+#endif /* __rtems__ */
 		goto yield;
 next_iter:
+#ifndef __rtems__
 		if (!should_yield())
 			continue;
+#endif /* __rtems__ */
 		MNT_IUNLOCK(mp);
 yield:
+#ifndef __rtems__
 		kern_yield(PRI_USER);
+#endif /* __rtems__ */
 relock_mnt:
 		MNT_ILOCK(mp);
 	}
@@ -1276,12 +1310,16 @@ vnlru_proc(void)
 	int done, force, trigger, usevnodes;
 	bool reclaim_nc_src;
 
+#ifndef __rtems__
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, vnlruproc,
 	    SHUTDOWN_PRI_FIRST);
+#endif /* __rtems__ */
 
 	force = 0;
 	for (;;) {
+#ifndef __rtems__
 		kproc_suspend_check(vnlruproc);
+#endif /* __rtems__ */
 		mtx_lock(&vnode_free_list_mtx);
 		/*
 		 * If numvnodes is too large (due to desiredvnodes being
@@ -1332,7 +1370,11 @@ vnlru_proc(void)
 		 * misconfigured cases, and this is necessary.  Normally
 		 * it is about 8 to 100 (pages), which is quite large.
 		 */
+#ifndef __rtems__
 		trigger = vm_cnt.v_page_count * 2 / usevnodes;
+#else /* __rtems__ */
+		trigger = 32000 / usevnodes;
+#endif /* __rtems__ */
 		if (force < 2)
 			trigger = vsmalltrigger;
 		reclaim_nc_src = force >= 3;
@@ -1816,17 +1858,20 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	 */
 	do {
 		bufobj_wwait(bo, 0, 0);
+#ifndef __rtems__
 		if ((flags & V_VMIO) == 0 && bo->bo_object != NULL) {
 			BO_UNLOCK(bo);
 			vm_object_pip_wait_unlocked(bo->bo_object, "bovlbx");
 			BO_LOCK(bo);
 		}
+#endif /* __rtems__ */
 	} while (bo->bo_numoutput > 0);
 	BO_UNLOCK(bo);
 
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
+#ifndef __rtems__
 	if (bo->bo_object != NULL &&
 	    (flags & (V_ALT | V_NORMAL | V_CLEANONLY | V_VMIO)) == 0) {
 		VM_OBJECT_WLOCK(bo->bo_object);
@@ -1834,6 +1879,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 		    OBJPR_CLEANONLY : 0);
 		VM_OBJECT_WUNLOCK(bo->bo_object);
 	}
+#endif /* __rtems__ */
 
 #ifdef INVARIANTS
 	BO_LOCK(bo);
@@ -1859,8 +1905,10 @@ vinvalbuf(struct vnode *vp, int flags, int slpflag, int slptimeo)
 
 	CTR3(KTR_VFS, "%s: vp %p with flags %d", __func__, vp, flags);
 	ASSERT_VOP_LOCKED(vp, "vinvalbuf");
+#ifndef __rtems__
 	if (vp->v_object != NULL && vp->v_object->handle != vp)
 		return (0);
+#endif /* __rtems__ */
 	return (bufobj_invalbuf(&vp->v_bufobj, flags, slpflag, slptimeo));
 }
 
@@ -2036,7 +2084,9 @@ restartsync:
 
 	bufobj_wwait(bo, 0, 0);
 	BO_UNLOCK(bo);
+#ifndef __rtems__
 	vnode_pager_setsize(vp, length);
+#endif /* __rtems__ */
 
 	return (0);
 }
@@ -2385,15 +2435,19 @@ sched_sync(void)
 	starttime = time_uptime;
 	td->td_pflags |= TDP_NORUNNINGBUF;
 
+#ifndef __rtems__
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, syncer_shutdown, td->td_proc,
 	    SHUTDOWN_PRI_LAST);
+#endif /* __rtems__ */
 
 	mtx_lock(&sync_mtx);
 	for (;;) {
 		if (syncer_state == SYNCER_FINAL_DELAY &&
 		    syncer_final_iter == 0) {
 			mtx_unlock(&sync_mtx);
+#ifndef __rtems__
 			kproc_suspend_check(td->td_proc);
+#endif /* __rtems__ */
 			mtx_lock(&sync_mtx);
 		}
 		net_worklist_len = syncer_worklist_len - sync_vnode_count;
@@ -2458,7 +2512,9 @@ sched_sync(void)
 				 * drivers need to sleep while patting
 				 */
 				mtx_unlock(&sync_mtx);
+#ifndef __rtems__
 				wdog_kern_pat(WD_LASTVAL);
+#endif /* __rtems__ */
 				mtx_lock(&sync_mtx);
 			}
 
@@ -2491,12 +2547,14 @@ sched_sync(void)
 		 * matter as we are just trying to generally pace the
 		 * filesystem activity.
 		 */
+#ifndef __rtems__
 		if (syncer_state != SYNCER_RUNNING ||
 		    time_uptime == starttime) {
 			thread_lock(td);
 			sched_prio(td, PPAUSE);
 			thread_unlock(td);
 		}
+#endif /* __rtems__ */
 		if (syncer_state != SYNCER_RUNNING)
 			cv_timedwait(&sync_wakeup, &sync_mtx,
 			    hz / SYNCER_SHUTDOWN_SPEEDUP);
@@ -3287,8 +3345,10 @@ _vdrop(struct vnode *vp, bool locked)
 	VNASSERT(TAILQ_EMPTY(&vp->v_cache_dst), vp, ("vp has namecache dst"));
 	VNASSERT(LIST_EMPTY(&vp->v_cache_src), vp, ("vp has namecache src"));
 	VNASSERT(vp->v_cache_dd == NULL, vp, ("vp has namecache for .."));
+#ifndef __rtems__
 	VNASSERT(TAILQ_EMPTY(&vp->v_rl.rl_waiters), vp,
 	    ("Dangling rangelock waiters"));
+#endif /* __rtems__ */
 	VI_UNLOCK(vp);
 #ifdef MAC
 	mac_vnode_destroy(vp);
@@ -3341,12 +3401,14 @@ vinactive(struct vnode *vp, struct thread *td)
 	 * point that VOP_INACTIVE() is called, there could still be
 	 * pending I/O and dirty pages in the object.
 	 */
+#ifndef __rtems__
 	if ((obj = vp->v_object) != NULL && (vp->v_vflag & VV_NOSYNC) == 0 &&
 	    (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
 		VM_OBJECT_WLOCK(obj);
 		vm_object_page_clean(obj, 0, 0, 0);
 		VM_OBJECT_WUNLOCK(obj);
 	}
+#endif /* __rtems__ */
 	VOP_INACTIVE(vp, td);
 	VI_LOCK(vp);
 	VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
@@ -3426,9 +3488,11 @@ loop:
 		 */
 		if (flags & WRITECLOSE) {
 			if (vp->v_object != NULL) {
+#ifndef __rtems__
 				VM_OBJECT_WLOCK(vp->v_object);
 				vm_object_page_clean(vp->v_object, 0, 0, 0);
 				VM_OBJECT_WUNLOCK(vp->v_object);
+#endif /* __rtems__ */
 			}
 			error = VOP_FSYNC(vp, MNT_WAIT, td);
 			if (error != 0) {
@@ -3650,7 +3714,11 @@ vgonel(struct vnode *vp)
 		VI_UNLOCK(vp);
 	}
 	if (vp->v_type == VSOCK)
+#ifndef __rtems__
 		vfs_unp_reclaim(vp);
+#else /* __rtems__ */
+		panic("vgonel with sock");
+#endif /* __rtems__ */
 
 	/*
 	 * Clean out any buffers associated with the vnode.
@@ -3841,6 +3909,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	printf("    flags (%s)\n", buf + 1);
 	if (mtx_owned(VI_MTX(vp)))
 		printf(" VI_LOCKed");
+#ifndef __rtems__
 	if (vp->v_object != NULL)
 		printf("    v_object %p ref %d pages %d "
 		    "cleanbuf %d dirtybuf %d\n",
@@ -3848,6 +3917,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		    vp->v_object->resident_page_count,
 		    vp->v_bufobj.bo_clean.bv_cnt,
 		    vp->v_bufobj.bo_dirty.bv_cnt);
+#endif /* __rtems__ */
 	printf("    ");
 	lockmgr_printinfo(vp->v_vnlock);
 	if (vp->v_data != NULL)
@@ -4390,6 +4460,7 @@ vfs_unmountall(void)
 void
 vfs_msync(struct mount *mp, int flags)
 {
+#ifndef __rtems__
 	struct vnode *vp, *mvp;
 	struct vm_object *obj;
 
@@ -4422,6 +4493,7 @@ vfs_msync(struct mount *mp, int flags)
 		} else
 			VI_UNLOCK(vp);
 	}
+#endif /* __rtems__ */
 }
 
 static void
@@ -4627,10 +4699,14 @@ sync_fsync(struct vop_fsync_args *ap)
 		vfs_unbusy(mp);
 		return (0);
 	}
+#ifndef __rtems__
 	save = curthread_pflags_set(TDP_SYNCIO);
+#endif /* __rtems__ */
 	vfs_msync(mp, MNT_NOWAIT);
 	error = VFS_SYNC(mp, MNT_LAZY);
+#ifndef __rtems__
 	curthread_pflags_restore(save);
+#endif /* __rtems__ */
 	vn_finished_write(mp);
 	vfs_unbusy(mp);
 	return (error);
@@ -4845,6 +4921,7 @@ int
 extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
     struct thread *td, accmode_t accmode)
 {
+#ifndef __rtems__
 
 	/*
 	 * Kernel-invoked always succeeds.
@@ -4865,6 +4942,9 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
 	default:
 		return (EPERM);
 	}
+#else /* __rtems__ */
+	return (0);
+#endif /* __rtems__ */
 }
 
 #ifdef DEBUG_VFS_LOCKS
@@ -5713,8 +5793,10 @@ __mnt_vnode_next_all(struct vnode **mvp, struct mount *mp)
 {
 	struct vnode *vp;
 
+#ifndef __rtems__
 	if (should_yield())
 		kern_yield(PRI_USER);
+#endif /* __rtems__ */
 	MNT_ILOCK(mp);
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	for (vp = TAILQ_NEXT(*mvp, v_nmntvnodes); vp != NULL;
@@ -5939,8 +6021,10 @@ struct vnode *
 __mnt_vnode_next_active(struct vnode **mvp, struct mount *mp)
 {
 
+#ifndef __rtems__
 	if (should_yield())
 		kern_yield(PRI_USER);
+#endif /* __rtems__ */
 	mtx_lock(&mp->mnt_listmtx);
 	return (mnt_vnode_next_active(mvp, mp));
 }

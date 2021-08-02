@@ -717,7 +717,9 @@ struct proc {
 					       binary (from ELF note, if any) */
 	uint32_t	p_fctl0;	/* (x) ABI feature control, ELF note */
 	char		p_comm[MAXCOMLEN + 1];	/* (x) Process name. */
+#endif /* __rtems__ */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
+#ifndef __rtems__
 	struct pargs	*p_args;	/* (c) Process arguments. */
 	rlim_t		p_cpulimit;	/* (c) Current CPU limit in seconds. */
 	signed char	p_nice;		/* (c) Process "nice" value. */

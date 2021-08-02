@@ -95,6 +95,18 @@ int vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold);
 int vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
     vm_prot_t prot, vm_page_t *ma, int max_count);
+#else /* __rtems__ */
+static inline int vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
+    vm_prot_t prot, vm_page_t *ma, int max_count) {
+  vm_offset_t end;
+  if (len == 0)
+    return (0);
+  end = round_page(addr + len);
+  addr = trunc_page(addr);
+ if (atop(end - addr) > max_count)
+   panic("vm_fault_quick_hold_pages: count > max_count");
+ return atop(end - addr);
+}
 #endif /* __rtems__ */
 void vm_fault_unwire(vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
 int vm_fault_wire(vm_map_t, vm_offset_t, vm_offset_t, boolean_t);

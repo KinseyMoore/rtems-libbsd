@@ -1,3 +1,5 @@
+#include <machine/rtems-bsd-kernel-space.h>
+
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -39,9 +41,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_capsicum.h"
-#include "opt_ddb.h"
-#include "opt_ktrace.h"
+#include <rtems/bsd/local/opt_capsicum.h>
+#include <rtems/bsd/local/opt_ddb.h>
+#include <rtems/bsd/local/opt_ktrace.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -74,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
-#include <sys/unistd.h>
+#include <rtems/bsd/sys/unistd.h>
 #include <sys/user.h>
 #include <sys/vnode.h>
 #ifdef KTRACE
@@ -359,6 +361,7 @@ sys_getdtablesize(struct thread *td, struct getdtablesize_args *uap)
 	return (0);
 }
 
+#ifndef __rtems__
 /*
  * Duplicate a file descriptor to a particular value.
  *
@@ -479,6 +482,7 @@ kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg)
 	}
 	return (error);
 }
+#endif /* __rtems__ */
 
 int
 kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
@@ -501,6 +505,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	AUDIT_ARG_FD(cmd);
 	AUDIT_ARG_CMD(cmd);
 	switch (cmd) {
+#ifndef __rtems__
 	case F_DUPFD:
 		tmp = arg;
 		error = kern_dup(td, FDDUP_FCNTL, 0, fd, tmp);
@@ -520,6 +525,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		tmp = arg;
 		error = kern_dup(td, FDDUP_FIXED, FDDUP_FLAG_CLOEXEC, fd, tmp);
 		break;
+#endif /* __rtems__ */
 
 	case F_GETFD:
 		error = EBADF;
@@ -580,6 +586,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		fdrop(fp, td);
 		break;
 
+#ifndef __rtems__
 	case F_GETOWN:
 		error = fget_fcntl(td, fd, &cap_fcntl_rights, F_GETOWN, &fp);
 		if (error != 0)
@@ -790,6 +797,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		VOP_UNLOCK(vp, 0);
 		fdrop(fp, td);
 		break;
+#endif /* __rtems__ */
 
 	default:
 		error = EINVAL;
@@ -805,6 +813,7 @@ getmaxfd(struct thread *td)
 	return (min((int)lim_cur(td, RLIMIT_NOFILE), maxfilesperproc));
 }
 
+#ifndef __rtems__
 /*
  * Common code for dup, dup2, fcntl(F_DUPFD) and fcntl(F_DUP2FD).
  */
@@ -1165,6 +1174,7 @@ fgetown(struct sigio **sigiop)
 	SIGIO_UNLOCK();
 	return (pgid);
 }
+#endif /* __rtems__ */
 
 /*
  * Function drops the filedesc lock on return.
@@ -1256,6 +1266,7 @@ kern_close(struct thread *td, int fd)
 	return (closefp(fdp, fd, fp, td, 1));
 }
 
+#ifndef __rtems__
 /*
  * Close open file descriptors.
  */
@@ -1291,6 +1302,7 @@ sys_closefrom(struct thread *td, struct closefrom_args *uap)
 	FILEDESC_SUNLOCK(fdp);
 	return (0);
 }
+#endif /* __rtems__ */
 
 #if defined(COMPAT_43)
 /*
@@ -1417,6 +1429,7 @@ freebsd11_nfstat(struct thread *td, struct freebsd11_nfstat_args *uap)
 }
 #endif /* COMPAT_FREEBSD11 */
 
+#ifndef __rtems__
 /*
  * Return pathconf information about a file descriptor.
  */
@@ -1473,6 +1486,7 @@ out:
 	fdrop(fp, td);
 	return (error);
 }
+#endif /* __rtems__ */
 
 /*
  * Copy filecaps structure allocating memory for ioctls array if needed.
@@ -1596,6 +1610,7 @@ static void
 filecaps_validate(const struct filecaps *fcaps, const char *func)
 {
 
+#ifndef __rtems__
 	KASSERT(cap_rights_is_valid(&fcaps->fc_rights),
 	    ("%s: invalid rights", func));
 	KASSERT((fcaps->fc_fcntls & ~CAP_FCNTL_ALL) == 0,
@@ -1609,6 +1624,7 @@ filecaps_validate(const struct filecaps *fcaps, const char *func)
 	KASSERT(fcaps->fc_nioctls == 0 ||
 	    cap_rights_is_set(&fcaps->fc_rights, CAP_IOCTL),
 	    ("%s: ioctls without CAP_IOCTL", func));
+#endif /* __rtems__ */
 }
 
 static void
@@ -1855,10 +1871,12 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 	    priv_check(td, PRIV_MAXFILES) != 0) ||
 	    openfiles_new >= maxfiles) {
 		atomic_subtract_int(&openfiles, 1);
+#ifndef __rtems__
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
 			printf("kern.maxfiles limit exceeded by uid %i, (%s) "
 			    "please see tuning(7).\n", td->td_ucred->cr_ruid, td->td_proc->p_comm);
 		}
+#endif /* __rtems__ */
 		return (ENFILE);
 	}
 	fp = uma_zalloc(file_zone, M_WAITOK);
@@ -2012,6 +2030,7 @@ fdshare(struct filedesc *fdp)
 	return (fdp);
 }
 
+#ifndef __rtems__
 /*
  * Unshare a filedesc structure, if necessary by making a copy
  */
@@ -2362,6 +2381,7 @@ fdsetugidsafety(struct thread *td)
 		}
 	}
 }
+#endif /* __rtems__ */
 
 /*
  * If a specific file object occupies a specific file descriptor, close the
@@ -2384,6 +2404,7 @@ fdclose(struct thread *td, struct file *fp, int idx)
 		FILEDESC_XUNLOCK(fdp);
 }
 
+#ifndef __rtems__
 /*
  * Close any files on exec?
  */
@@ -2409,6 +2430,7 @@ fdcloseexec(struct thread *td)
 		}
 	}
 }
+#endif /* __rtems__ */
 
 /*
  * It is unsafe for set[ug]id processes to be started with file
@@ -2477,6 +2499,7 @@ closef(struct file *fp, struct thread *td)
 	 */
 	if (fp->f_type == DTYPE_VNODE && td != NULL) {
 		vp = fp->f_vnode;
+#ifndef __rtems__
 		if ((td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
 			lf.l_whence = SEEK_SET;
 			lf.l_start = 0;
@@ -2485,6 +2508,7 @@ closef(struct file *fp, struct thread *td)
 			(void) VOP_ADVLOCK(vp, (caddr_t)td->td_proc->p_leader,
 			    F_UNLCK, &lf, F_POSIX);
 		}
+#endif /* __rtems__ */
 		fdtol = td->td_proc->p_fdtol;
 		if (fdtol != NULL) {
 			/*
@@ -2496,8 +2520,10 @@ closef(struct file *fp, struct thread *td)
 			for (fdtol = fdtol->fdl_next;
 			    fdtol != td->td_proc->p_fdtol;
 			    fdtol = fdtol->fdl_next) {
+#ifndef __rtems__
 				if ((fdtol->fdl_leader->p_flag &
 				    P_ADVLOCK) == 0)
+#endif /* __rtems__ */
 					continue;
 				fdtol->fdl_holdcount++;
 				FILEDESC_XUNLOCK(fdp);
@@ -2697,6 +2723,18 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		*seqp = seq;
 #endif
 	}
+#ifdef __rtems__
+	if (fp->f_io != NULL) {
+		rtems_libio_iop_hold(fp->f_io);
+		if (RTEMS_BSD_DESCRIP_TRACE)
+			printf("bsd:  fb: fget_unlocked: iop=%p %d (%d)  fp=%p (%d) by %p\n",
+			       fp->f_io, fp->f_io->data0, fp->f_io->flags >> 12,
+			       fp, fp->f_count, __builtin_return_address(0));
+	} else if (RTEMS_BSD_DESCRIP_TRACE) {
+		printf("bsd:  fb: fget_unlocked: iop=NULL -1 (0) fp=%p (%d) by %p\n",
+		       fp, fp->f_count, __builtin_return_address(0));
+	}
+#endif /* __rtems__ */
 	return (0);
 }
 
@@ -2741,11 +2779,13 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 		if ((fp->f_flag & flags) == 0)
 			error = EBADF;
 		break;
+#ifndef __rtems__
 	case FEXEC:
 	    	if ((fp->f_flag & (FREAD | FEXEC)) == 0 ||
 		    ((fp->f_flag & FWRITE) != 0))
 			error = EBADF;
 		break;
+#endif /* __rtems__ */
 	case 0:
 		break;
 	default:
@@ -2768,6 +2808,7 @@ fget(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 	return (_fget(td, fd, fpp, 0, rightsp, NULL));
 }
 
+#ifndef __rtems__
 int
 fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
     struct file **fpp)
@@ -2802,6 +2843,7 @@ fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
 #endif
 	return (error);
 }
+#endif /* __rtems__ */
 
 int
 fget_read(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
@@ -2921,12 +2963,14 @@ fgetvp_read(struct thread *td, int fd, cap_rights_t *rightsp, struct vnode **vpp
 	return (_fgetvp(td, fd, FREAD, rightsp, vpp));
 }
 
+#ifndef __rtems__
 int
 fgetvp_exec(struct thread *td, int fd, cap_rights_t *rightsp, struct vnode **vpp)
 {
 
 	return (_fgetvp(td, fd, FEXEC, rightsp, vpp));
 }
+#endif /* __rtems__ */
 
 #ifdef notyet
 int
@@ -2954,12 +2998,15 @@ _fdrop(struct file *fp, struct thread *td)
 	error = fo_close(fp, td);
 	atomic_subtract_int(&openfiles, 1);
 	crfree(fp->f_cred);
+#ifndef __rtems__
 	free(fp->f_advice, M_FADVISE);
+#endif /* __rtems__ */
 	uma_zfree(file_zone, fp);
 
 	return (error);
 }
 
+#ifndef __rtems__
 /*
  * Apply an advisory lock on a file descriptor.
  *
@@ -3178,6 +3225,7 @@ pwd_chroot(struct thread *td, struct vnode *vp)
 	vrele(oldvp);
 	return (0);
 }
+#endif /* __rtems__ */
 
 void
 pwd_chdir(struct thread *td, struct vnode *vp)
@@ -3202,6 +3250,7 @@ pwd_chdir(struct thread *td, struct vnode *vp)
 void
 mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 {
+#ifndef __rtems__
 	struct filedesc *fdp;
 	struct prison *pr;
 	struct proc *p;
@@ -3262,6 +3311,7 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 	sx_sunlock(&allprison_lock);
 	while (nrele--)
 		vrele(olddp);
+#endif /* __rtems__ */
 }
 
 struct filedesc_to_leader *
@@ -3289,6 +3339,7 @@ filedesc_to_leader_alloc(struct filedesc_to_leader *old, struct filedesc *fdp, s
 	return (fdtol);
 }
 
+#ifndef __rtems__
 static int
 sysctl_kern_proc_nfds(SYSCTL_HANDLER_ARGS)
 {
@@ -3787,6 +3838,7 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc,
     CTLFLAG_RD|CTLFLAG_MPSAFE, sysctl_kern_proc_ofiledesc,
     "Process ofiledesc entries");
 #endif	/* COMPAT_FREEBSD7 */
+#endif /* __rtems__ */
 
 int
 vntype_to_kinfo(int vtype)
@@ -3817,6 +3869,7 @@ vntype_to_kinfo(int vtype)
 	return (KF_VTYPE_UNKNOWN);
 }
 
+#ifndef __rtems__
 static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc,
     CTLFLAG_RD|CTLFLAG_MPSAFE, sysctl_kern_proc_filedesc,
     "Process filedesc entries");
@@ -3888,6 +3941,7 @@ sysctl_kern_proc_cwd(SYSCTL_HANDLER_ARGS)
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_CWD, cwd, CTLFLAG_RD|CTLFLAG_MPSAFE,
     sysctl_kern_proc_cwd, "Process current working directory");
+#endif /* __rtems__ */
 
 #ifdef DDB
 /*
@@ -4036,7 +4090,11 @@ filelistinit(void *dummy)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtx_init(&sigio_lock, "sigio lock", NULL, MTX_DEF);
 }
+#ifndef __rtems__
 SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, filelistinit, NULL);
+#else /* __rtems__ */
+SYSINIT(select_sub_lock, SI_SUB_LOCK, SI_ORDER_FIRST, filelistinit, NULL);
+#endif /* __rtems__ */
 
 /*-------------------------------------------------------------------*/
 
@@ -4205,6 +4263,7 @@ invfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	return (EINVAL);
 }
 
+#ifndef __rtems__
 /*-------------------------------------------------------------------*/
 
 /*
@@ -4258,3 +4317,4 @@ fildesc_drvinit(void *unused)
 }
 
 SYSINIT(fildescdev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, fildesc_drvinit, NULL);
+#endif /* __rtems__ */
