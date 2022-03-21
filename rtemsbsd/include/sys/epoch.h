@@ -34,6 +34,7 @@
 #include <sys/cdefs.h>
 #ifdef _KERNEL
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
 #include <sys/pcpu.h>
