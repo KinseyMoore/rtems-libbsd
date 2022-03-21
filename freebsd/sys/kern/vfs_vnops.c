@@ -219,8 +219,10 @@ restart:
 		ndp->ni_cnd.cn_flags = ISOPEN | LOCKPARENT | LOCKLEAF | NOCACHE;
 		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
+#ifndef __rtems__
 		if ((fmode & O_BENEATH) != 0)
 			ndp->ni_cnd.cn_flags |= BENEATH;
+#endif /* __rtems__ */
 		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
 			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
 		if (vn_open_flags & VN_OPEN_NOCAPCHECK)
@@ -282,8 +284,10 @@ restart:
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) | LOCKLEAF;
 		if (!(fmode & FWRITE))
 			ndp->ni_cnd.cn_flags |= LOCKSHARED;
+#ifndef __rtems__
 		if ((fmode & O_BENEATH) != 0)
 			ndp->ni_cnd.cn_flags |= BENEATH;
+#endif /* __rtems__ */
 		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
 			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
 		if (vn_open_flags & VN_OPEN_NOCAPCHECK)

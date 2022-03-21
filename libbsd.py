@@ -587,7 +587,6 @@ class base(builder.Module):
                 'sys/kern/vfs_syscalls.c',
                 'sys/kern/vfs_vnops.c',
                 'sys/libkern/bcd.c',
-                'sys/libkern/crc32.c',
                 'sys/libkern/gsb_crc32.c',
                 'sys/libkern/inet_ntoa.c',
                 'sys/libkern/jenkins_hash.c',
