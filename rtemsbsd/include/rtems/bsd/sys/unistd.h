@@ -160,6 +160,7 @@
 /* From OpenSolaris, used by SEEK_DATA/SEEK_HOLE. */
 #define	_PC_MIN_HOLE_SIZE	21
 #else /* __rtems__ */
+#define	_PC_MIN_HOLE_SIZE	21
 #include <unistd.h>
 #endif /* __rtems__ */
 

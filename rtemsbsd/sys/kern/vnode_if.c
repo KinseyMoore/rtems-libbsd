@@ -34,6 +34,8 @@ static int vop_islocked_vp_offsets[] =  {
 	VDESC_NO_OFFSET
 };
 
+#define VFS_PROLOGUE(MP)
+#define VFS_EPILOGUE(MP)
 
 SDT_PROBE_DEFINE2(vfs, vop, vop_islocked, entry, "struct vnode *", "struct vop_islocked_args *");
 
