@@ -91,6 +91,9 @@ __FBSDID("$FreeBSD$");
 
 #ifndef __rtems__
 #include <ufs/ufs/quota.h>
+#else
+#define	AT_BENEATH 0x1000
+#define	FD_NONE -200
 #endif /* __rtems__ */
 
 MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
@@ -1809,6 +1812,7 @@ sys_unlinkat(struct thread *td, struct unlinkat_args *uap)
 	    UIO_USERSPACE, 0));
 }
 
+#ifndef __rtems__
 #ifndef _SYS_SYSPROTO_H_
 struct funlinkat_args {
 	int		dfd;
@@ -1824,6 +1828,7 @@ sys_funlinkat(struct thread *td, struct funlinkat_args *uap)
 	return (kern_funlinkat_ex(td, uap->dfd, uap->path, uap->fd, uap->flag,
 	    UIO_USERSPACE, 0));
 }
+#endif /* __rtems__ */
 
 int
 kern_funlinkat(struct thread *td, int dfd, const char *path, int fd,

@@ -175,6 +175,7 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 	return (vfsp);
 }
 
+#ifndef __rtems__
 static int
 vfs_mount_sigdefer(struct mount *mp)
 {
@@ -367,6 +368,7 @@ static struct vfsops vfsops_sigdefer = {
 	.vfs_purge =		vfs_purge_sigdefer,
 
 };
+#endif /* __rtems__ */
 
 /* Register a new filesystem type in the global table */
 static int
@@ -480,12 +482,12 @@ vfs_register(struct vfsconf *vfc)
 	if (vfsops->vfs_sysctl == NULL)
 		vfsops->vfs_sysctl = vfs_stdsysctl;
 
+#ifndef __rtems__
 	if ((vfc->vfc_flags & VFCF_SBDRY) != 0) {
 		vfc->vfc_vfsops_sd = vfc->vfc_vfsops;
 		vfc->vfc_vfsops = &vfsops_sigdefer;
 	}
 
-#ifndef __rtems__
 	if (vfc->vfc_flags & VFCF_JAIL)
 		prison_add_vfs(vfc);
 #endif /* __rtems__ */

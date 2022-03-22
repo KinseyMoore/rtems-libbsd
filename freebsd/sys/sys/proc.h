@@ -638,8 +638,10 @@ struct proc {
 	struct plimit	*p_limit;	/* (c) Resource limits. */
 	struct callout	p_limco;	/* (c) Limit callout handle */
 	struct sigacts	*p_sigacts;	/* (x) Signal actions, state (CPU). */
+#endif /* __rtems__ */
 
 	int		p_flag;		/* (c) P_* flags. */
+#ifndef __rtems__
 	int		p_flag2;	/* (c) P2_* flags. */
 	enum p_states {
 		PRS_NEW = 0,		/* In creation */

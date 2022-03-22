@@ -1505,7 +1505,6 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 		fd = rtems_bsd_libio_iop_allocate_with_file(td, fd, &rtems_bsd_sysgen_nodeops);
 		if (fd < 0) {
 			fdclose(td, f, fd);
-			mtx_destroy(&fcr->lock);
 			free(fcr, M_XDATA);
 			return (error);
 		}

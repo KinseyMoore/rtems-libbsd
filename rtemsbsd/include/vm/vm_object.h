@@ -13,4 +13,12 @@
 #define UOFF_TO_IDX(off) OFF_TO_IDX(off)
 #define OBJ_MAX_SIZE    (OFF_TO_IDX(UINT64_MAX) + 1)
 
+#define OBJ_MIGHTBEDIRTY	0x100
+struct vm_object {
+  objtype_t type;
+  u_short flags;
+  void *handle;
+};
+
+
 #endif
