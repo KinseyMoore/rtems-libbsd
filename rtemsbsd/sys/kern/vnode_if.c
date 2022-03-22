@@ -1985,6 +1985,72 @@ struct vnodeop_desc vop_inactive_desc = {
 	VDESC_NO_OFFSET,
 };
 
+static int vop_need_inactive_vp_offsets[] = {
+	VOPARG_OFFSETOF(struct vop_need_inactive_args,a_vp),
+	VDESC_NO_OFFSET
+};
+
+
+SDT_PROBE_DEFINE2(vfs, vop, vop_need_inactive, entry, "struct vnode *", "struct vop_need_inactive_args *");
+
+SDT_PROBE_DEFINE3(vfs, vop, vop_need_inactive, return, "struct vnode *", "struct vop_need_inactive_args *", "int");
+
+
+int
+VOP_NEED_INACTIVE_AP(struct vop_need_inactive_args *a)
+{
+
+	return(VOP_NEED_INACTIVE_APV(a->a_vp->v_op, a));
+}
+
+int
+VOP_NEED_INACTIVE_APV(struct vop_vector *vop, struct vop_need_inactive_args *a)
+{
+	int rc;
+
+	VNASSERT(a->a_gen.a_desc == &vop_need_inactive_desc, a->a_vp,
+	    ("Wrong a_desc in vop_need_inactive(%p, %p)", a->a_vp, a));
+	while(vop != NULL && \
+	    vop->vop_need_inactive == NULL && vop->vop_bypass == NULL)
+		vop = vop->vop_default;
+	VNASSERT(vop != NULL, a->a_vp, ("No vop_need_inactive(%p, %p)", a->a_vp, a));
+	SDT_PROBE2(vfs, vop, vop_need_inactive, entry, a->a_vp, a);
+
+	ASSERT_VI_UNLOCKED(a->a_vp, "VOP_NEED_INACTIVE");
+	ASSERT_VOP_ELOCKED(a->a_vp, "VOP_NEED_INACTIVE");
+	KTR_START2(KTR_VOP, "VOP", "VOP_NEED_INACTIVE", (uintptr_t)a,
+	    "vp:0x%jX", (uintptr_t)a->a_vp, "td:0x%jX", a->a_td);
+	VFS_PROLOGUE(a->a_vp->v_mount);
+	if (vop->vop_need_inactive != NULL)
+		rc = vop->vop_need_inactive(a);
+	else
+		rc = vop->vop_bypass(&a->a_gen);
+	VFS_EPILOGUE(a->a_vp->v_mount);
+	SDT_PROBE3(vfs, vop, vop_need_inactive, return, a->a_vp, a, rc);
+
+	if (rc == 0) {
+		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_NEED_INACTIVE");
+		ASSERT_VOP_ELOCKED(a->a_vp, "VOP_NEED_INACTIVE");
+	} else {
+		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_NEED_INACTIVE");
+		ASSERT_VOP_ELOCKED(a->a_vp, "VOP_NEED_INACTIVE");
+	}
+	KTR_STOP2(KTR_VOP, "VOP", "VOP_NEED_INACTIVE", (uintptr_t)a,
+	    "vp:0x%jX", (uintptr_t)a->a_vp, "td:0x%jX", a->a_td);
+	return (rc);
+}
+
+struct vnodeop_desc vop_need_inactive_desc = {
+	"vop_need_inactive",
+	0,
+	(vop_bypass_t *)VOP_NEED_INACTIVE_AP,
+	vop_need_inactive_vp_offsets,
+	VDESC_NO_OFFSET,
+	VDESC_NO_OFFSET,
+	VDESC_NO_OFFSET,
+	VDESC_NO_OFFSET,
+};
+
 static int vop_reclaim_vp_offsets[] = {
 	VOPARG_OFFSETOF(struct vop_reclaim_args,a_vp),
 	VDESC_NO_OFFSET
