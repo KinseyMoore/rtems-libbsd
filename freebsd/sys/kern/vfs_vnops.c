@@ -2989,6 +2989,7 @@ vn_write_outvp(struct vnode *outvp, char *dat, off_t outoff, off_t xfer,
 	} while (!growfile && xfer > 0 && error == 0);
 	return (error);
 }
+#endif /* __rtems__ */
 
 /*
  * Copy a byte range of one file to another.  This function can handle the
@@ -3224,4 +3225,3 @@ out:
 	free(dat, M_TEMP);
 	return (error);
 }
-#endif /* __rtems__ */
