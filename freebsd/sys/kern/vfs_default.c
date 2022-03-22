@@ -1413,6 +1413,7 @@ bp_by_off(struct vop_vector *vop, struct vop_generic_args *a)
 	return (*(vop_bypass_t **)((char *)vop + a->a_desc->vdesc_vop_offset));
 }
 
+#ifndef __rtems__
 int
 vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a)
 {
@@ -1440,3 +1441,4 @@ vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a)
 	sigallowstop(prev_stops);
 	return (rc);
 }
+#endif /* __rtems__ */

@@ -2755,6 +2755,7 @@ loop2:
 	return (error);
 }
 
+#ifndef __rtems__
 /*
  * Copies a byte range from invp to outvp.  Calls VOP_COPY_FILE_RANGE()
  * or vn_generic_copy_file_range() after rangelocking the byte ranges,
@@ -3223,3 +3224,4 @@ out:
 	free(dat, M_TEMP);
 	return (error);
 }
+#endif /* __rtems__ */

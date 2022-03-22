@@ -93,6 +93,9 @@ typedef int vop_readlink_t(struct vop_readlink_args *);
 struct vop_inactive_args;
 typedef int vop_inactive_t(struct vop_inactive_args *);
 
+struct vop_need_inactive_args;
+typedef int vop_need_inactive_t(struct vop_need_inactive_args *);
+
 struct vop_reclaim_args;
 typedef int vop_reclaim_t(struct vop_reclaim_args *);
 
@@ -206,6 +209,9 @@ typedef int vop_add_writecount_t(struct vop_add_writecount_args *);
 
 struct vop_fdatasync_args;
 typedef int vop_fdatasync_t(struct vop_fdatasync_args *);
+
+struct vop_copy_file_range_args;
+typedef int vop_copy_file_range_t(struct vop_copy_file_range_args *);
 
 struct vop_spare1_args;
 typedef int vop_spare1_t(struct vop_spare1_args *);

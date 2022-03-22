@@ -807,6 +807,26 @@ static __inline int VOP_INACTIVE(
 	return (VOP_INACTIVE_APV(vp->v_op, &a));
 }
 
+struct vop_need_inactive_args {
+	struct vop_generic_args a_gen;
+	struct vnode *a_vp;
+};
+
+extern struct vnodeop_desc vop_need_inactive_desc;
+
+int VOP_NEED_INACTIVE_AP(struct vop_need_inactive_args *);
+int VOP_NEED_INACTIVE_APV(struct vop_vector *vop, struct vop_need_inactive_args *);
+
+static __inline int VOP_NEED_INACTIVE(
+	struct vnode *vp)
+{
+	struct vop_need_inactive_args a;
+
+	a.a_gen.a_desc = &vop_need_inactive_desc;
+	a.a_vp = vp;
+	return (VOP_NEED_INACTIVE_APV(vp->v_op, &a));
+}
+
 struct vop_reclaim_args {
 	struct vop_generic_args a_gen;
 	struct vnode *a_vp;
@@ -1847,6 +1867,50 @@ static __inline int VOP_FDATASYNC(
 	a.a_vp = vp;
 	a.a_td = td;
 	return (VOP_FDATASYNC_APV(vp->v_op, &a));
+}
+
+struct vop_copy_file_range_args {
+	struct vop_generic_args a_gen;
+	struct vnode *a_invp;
+	off_t *a_inoffp;
+	struct vnode *a_outvp;
+	off_t *a_outoffp;
+	size_t *a_lenp;
+	unsigned int a_flags;
+	struct ucred *a_incred;
+	struct ucred *a_outcred;
+	struct thread *a_fsizetd;
+};
+
+extern struct vnodeop_desc vop_copy_file_range_desc;
+
+int VOP_COPY_FILE_RANGE_AP(struct vop_copy_file_range_args *);
+int VOP_COPY_FILE_RANGE_APV(struct vop_vector *vop, struct vop_copy_file_range_args *);
+
+static __inline int VOP_COPY_FILE_RANGE(
+	struct vnode *invp,
+	off_t *inoffp,
+	struct vnode *outvp,
+	off_t *outoffp,
+	size_t *lenp,
+	unsigned int flags,
+	struct ucred *incred,
+	struct ucred *outcred,
+	struct thread *fsizetd)
+{
+	struct vop_copy_file_range_args a;
+
+	a.a_gen.a_desc = &vop_copy_file_range_desc;
+	a.a_invp = invp;
+	a.a_inoffp = inoffp;
+	a.a_outvp = outvp;
+	a.a_outoffp = outoffp;
+	a.a_lenp = lenp;
+	a.a_flags = flags;
+	a.a_incred = incred;
+	a.a_outcred = outcred;
+	a.a_fsizetd = fsizetd;
+	return (VOP_COPY_FILE_RANGE_APV(invp->v_op, &a));
 }
 
 struct vop_spare1_args {

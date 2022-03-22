@@ -753,6 +753,7 @@ int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
 #define	vn_rangelock_unlock(vp, cookie)
 #define	vn_rangelock_unlock_range(vp, cookie, start, end)
 #define	vn_rangelock_rlock(vp, start, end) NULL
+#define	vn_rangelock_tryrlock(vp, start, end) NULL
 #define	vn_rangelock_wlock(vp, start, end) NULL
 #define	vn_rangelock_trywlock(vp, start, end) NULL
 #endif /* __rtems__ */

@@ -38,6 +38,7 @@ struct vop_vector {
 	vop_readdir_t	*vop_readdir;
 	vop_readlink_t	*vop_readlink;
 	vop_inactive_t	*vop_inactive;
+	vop_need_inactive_t	*vop_need_inactive;
 	vop_reclaim_t	*vop_reclaim;
 	vop_lock1_t	*vop_lock1;
 	vop_unlock_t	*vop_unlock;
@@ -76,6 +77,7 @@ struct vop_vector {
 	vop_get_writecount_t	*vop_get_writecount;
 	vop_add_writecount_t	*vop_add_writecount;
 	vop_fdatasync_t	*vop_fdatasync;
+	vop_copy_file_range_t	*vop_copy_file_range;
 	vop_spare1_t	*vop_spare1;
 	vop_spare2_t	*vop_spare2;
 	vop_spare3_t	*vop_spare3;
